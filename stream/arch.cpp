@@ -78,7 +78,7 @@ int main(void)
           // sockfds 1=firstsockfd_chid[chid] 2=sockfd
           close(pfds[1]);
           int from_parent = pfds[0];
-          cout << "\n\tchild: I have started with sockfds " << firstsockfd_chid[chid] << " and " << sockfd;
+          cout << "\n\tchild: I have started with sockfds " << firstsockfd_chid[chid] << " and " << sockfd << " from_parent = " << from_parent;
           cout << "\n ~~~~~~~~~~~~ FORKED  ~~~~~~~~~~~~~~";
           cout << "\n ### now try select() for new sockfds connecting ### ";
 
@@ -93,24 +93,29 @@ int main(void)
           tv.tv_usec = 0;
 
           char buf[256];
+          cout.flush();
 
           while (1) {
-            if ( select(from_parent+1, &read_fds, NULL, NULL, &tv ) == -1)  {
+            if ( select(from_parent+1, &read_fds, NULL, NULL, NULL /*&tv*/ ) == -1)  {
               perror ("select");
               _exit(-10);
             }
 
             if ( FD_ISSET(from_parent, &read_fds)) {
               // we got new sockfd from parent
-              nbytes = recv(from_parent, buf, sizeof buf, 0);
+              nbytes = read(from_parent, buf, sizeof buf);
               cout << "\n child: read-end is ON, nbytes = " << nbytes;
               FD_CLR(from_parent, &read_fds);
               FD_SET(from_parent, &read_fds);
               //_exit(-10);
+              buf[nbytes] = '\0';
+              cout << "\n\t\t New sock fd received = |" << buf << "|";
+              exit(-10);
             }
-            buf[nbytes] = '\0';
-            cout << "\n\t\t New sock fd received = |" << buf << "|";
-            exit(-10);
+            else {
+              cout << "\n from_parent NOT set in FDSET ";
+            }
+
           } // while 
 
           _exit(0);
@@ -124,11 +129,13 @@ int main(void)
         //_exit(-1);
         if ( write (cpid_des[chatid_child[chid]], sockfd.c_str(), sockfd.length() ) == -1 ) {
           perror ("write-1");
+          printf ("\nhere 1");
           _exit(-1);
         }
         //sleep (10);
         //_exit(-1);
         cout << "\nParent waiting";
+        cout.flush();
         while (1) { }
       }
     }
