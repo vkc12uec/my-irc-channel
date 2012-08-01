@@ -12,8 +12,12 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <iostream>
-
+#include <assert.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <unistd.h>
 #include <arpa/inet.h>
+using namespace std;
 
 #define PORT "3490" // the port client will be connecting to 
 
@@ -30,6 +34,7 @@ void *get_in_addr(struct sockaddr *sa)
 }
 
 bool user_input (string &msg);
+bool server_receive (int sockfd, string &msg);
 
 int main(int argc, char *argv[])
 {
@@ -66,7 +71,6 @@ int main(int argc, char *argv[])
       perror("client: connect");
       continue;
     }
-
     break;
   }
 
@@ -81,7 +85,8 @@ int main(int argc, char *argv[])
 
   freeaddrinfo(servinfo); // all done with this structure
 
-  /* send command to server 
+  /* 
+     send command to server 
      - server parses the req.
      - server will spawn a new irc channel : td
      */
@@ -89,14 +94,7 @@ int main(int argc, char *argv[])
   if (send(sockfd, com , strlen(com), 0) == -1)
     perror("send1");
 
-  if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
-    perror("recv");
-    exit(1);
-  }
-
-  buf[numbytes] = '\0';
-
-  printf("client: received '%s'\n",buf);
+  cout << "\n hit enter ";  cin.get();
 
   string msg;
   cout << "\nNow starting the channel ops";
@@ -108,28 +106,17 @@ int main(int argc, char *argv[])
 
   while (1) {
     if (user_input(msg)) {
-      cout << "\nuser entered " << msg;
-      if (send(sockfd, msg.c_str() , string::length (msg), 0) == -1){
-        perror("send1");
+      cout << "\n \t\t $$$ user entered \n\n[" << msg << "]";
+      if (send(sockfd, msg.c_str() , (msg.length()), 0) == -1){
+        perror("send2");
         assert(0);
       }
     }
     else {
       // this part shud be non bloacking, hence use select here too
       if (server_receive(sockfd, msg))
-        cout << "\n" << msg;
-
-      if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
-        perror("recv");
-        exit(1);
-      }
-
-      buf[numbytes] = '\0';
-
-      printf("^'%s'\n",buf);
-
+        cout << "\n ~~[" << msg << "]";
     }
-
   } // while
 
   close(sockfd);
@@ -139,6 +126,7 @@ int main(int argc, char *argv[])
 bool server_receive (int sockfd, string &msg) {
   struct timeval tv;
   fd_set readfds;
+  int numbytes;
 
   tv.tv_sec = 1;
   tv.tv_usec = 0;
@@ -152,17 +140,26 @@ bool server_receive (int sockfd, string &msg) {
     printf("\n\t\t $$$ there is some thing from server $$$ \n\n");
     char buf[256];
 
-      if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
-        perror("recv");
-        exit(1);
-      }
-      buf[numbytes] = '\0';
+    if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
+      perror("recv");
+      exit(1);
+    }
+
+    if (numbytes == 0) {
+      close(sockfd);
+      msg = "";
+      return false;
+    }
+
+    buf[numbytes] = '\0';
 
     msg = string(buf);
+    FD_CLR(sockfd, &readfds);
     return true;
   }
   else {
     printf("\n\t\t $$$ NOTHING FROM SERVER, SELECT TIME-OUT $$$ \n\n");
+    msg = "";
     return false;
   }
 }
@@ -185,8 +182,8 @@ bool user_input (string &msg) {
   select(STDIN+1, &readfds, NULL, NULL, &tv);
 
   if (FD_ISSET(STDIN, &readfds)) {
-    printf("A key was pressed!\n");
-    cin >> msg;
+    //printf("A key was pressed!\n");
+    getline(cin, msg);
     return true;
   }
   else {
