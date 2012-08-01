@@ -110,22 +110,21 @@ int main(void)
               //_exit(-10);
               buf[nbytes] = '\0';
               cout << "\n\t\t New sock fd received = |" << buf << "|";
-              exit(-10);
+              //exit(-10);
             }
             else {
               cout << "\n from_parent NOT set in FDSET ";
             }
-
+            cout.flush();
           } // while 
 
           _exit(0);
         }
       }
       else {
-        // child already forked send the new sockfd to child using pipe
+        // parent
         cout << "\n\t\t Child for #chid "<< chid << " allready here; jsut use PIPE to transfer new sockfd " << sockfd << ", pipedes = ["<< cpid_des[chatid_child[chid]] <<"]";
         //fflush (cout);
-        cout.flush();
         //_exit(-1);
         if ( write (cpid_des[chatid_child[chid]], sockfd.c_str(), sockfd.length() ) == -1 ) {
           perror ("write-1");
@@ -136,7 +135,7 @@ int main(void)
         //_exit(-1);
         cout << "\nParent waiting";
         cout.flush();
-        while (1) { }
+        //while (1) { }
       }
     }
   } //while
