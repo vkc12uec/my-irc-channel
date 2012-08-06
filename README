@@ -1,0 +1,20 @@
+
+
+my-irc-channel:
+---------------
+
+This code is written to build a simple platform where clients connect to a specified channel# and start communition in irc-fashion.
+
+
+Design:
+-------
+
+Server listens on a socket. As soon a new client connects, server checks if there is already a child corresponding to that channel#.
+  If yes, then server routes the new client filedesc. to that child
+  Else it spawn a child who is responsible for relaying messsages b/w clients who use the same channel#.
+
+So, child <===> channel# is 1:1 relationship.
+    server <===> child is 1:M relationship.
+
+
+
