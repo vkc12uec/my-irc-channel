@@ -90,20 +90,62 @@ int main(int argc, char *argv[])
      - server parses the req.
      - server will spawn a new irc channel : td
      */
-  const char *com = "spawn ch123";
+  const char *com = "123";  //"spawn ch123";
   if (send(sockfd, com , strlen(com), 0) == -1)
     perror("send1");
 
+  cout << "\nsee if server is outputing correctly ? ";
   cout << "\n hit enter ";  cin.get();
 
   string msg;
   cout << "\nNow starting the channel ops";
 
   /* client flow:
-     if any activity on STDIN, then send that to server
-     else do recv calls from server
+     if any activity on 0 or from server => use select()
      */
 
+  fd_set read_fds;
+  int fdmax, nbytes;
+  struct timeval tv;
+  //char buf[256];
+  string tmp;
+
+  FD_ZERO(&read_fds);
+  FD_SET(sockfd, &read_fds);
+  FD_SET(0, &read_fds); //0
+
+  tv.tv_sec = 1;
+  tv.tv_usec = 0;
+
+  fdmax = max (sockfd, 0);
+  cout.flush();
+
+  while (1) {
+    // blocking
+    if ( select (fdmax+1, &read_fds, NULL, NULL, NULL) == -1) {
+      perror ("select ");
+      _exit(-1);
+    }
+
+    if (FD_ISSET(0, &read_fds)) {
+    cout << "\n\t\tClient got smth from SDTIN";
+      getline (cin, tmp);
+      if ( send (sockfd, tmp.c_str(), tmp.length(), 0) == -1 )
+        perror ("send");
+      FD_CLR(0, &read_fds);
+      FD_SET(0, &read_fds);
+    }
+    else if (FD_ISSET(sockfd, &read_fds)) {
+    cout << "\n\t\tClient got smth from OTHER client";
+      nbytes=read (sockfd, buf, sizeof buf);
+      buf[nbytes] = '\0';
+      cout << "\n --> " << buf;
+      FD_CLR(sockfd, &read_fds);    // is this overhead ?
+      FD_SET(sockfd, &read_fds);
+    }
+  } //while
+
+  #ifdef old_code
   while (1) {
     if (user_input(msg)) {
       cout << "\n \t\t $$$ user entered \n\n[" << msg << "]";
@@ -118,8 +160,11 @@ int main(int argc, char *argv[])
         cout << "\n ~~[" << msg << "]";
     }
   } // while
+  #endif
 
+  FD_ZERO(&read_fds);
   close(sockfd);
+
   return 0;
 }
 
@@ -167,7 +212,7 @@ bool server_receive (int sockfd, string &msg) {
 bool user_input (string &msg) {
   msg = "";
 
-#define STDIN 0  // file descriptor for standard input
+  //#define 0 0  // file descriptor for standard input
 
   struct timeval tv;
   fd_set readfds;
@@ -176,12 +221,12 @@ bool user_input (string &msg) {
   tv.tv_usec = 0;
 
   FD_ZERO(&readfds);
-  FD_SET(STDIN, &readfds);
+  FD_SET(0, &readfds);
 
   // don't care about writefds and exceptfds:
-  select(STDIN+1, &readfds, NULL, NULL, &tv);
+  select(0+1, &readfds, NULL, NULL, &tv);
 
-  if (FD_ISSET(STDIN, &readfds)) {
+  if (FD_ISSET(0, &readfds)) {
     //printf("A key was pressed!\n");
     getline(cin, msg);
     return true;
